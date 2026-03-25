@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Map Coloring CSP // V3.0</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=gg+sans:wght@400;700&family=JetBrains+Mono:wght@500;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg-deep: #0a0a0c;
+        --bg-sidebar: #1e1f22;
+        --bg-card: #2b2d31;
+        --blurple: #5865f2;
+        --blurple-hover: #4752c4;
+        --neon-cyan: #00f3ff;
+        --neon-magenta: #ff0055;
+        --neon-green: #23a559;
+        --text-main: #f2f3f5;
+        --text-dim: #949ba4;
+        --radius-lg: 24px;
+        --radius-md: 12px;
+        --btn-radius: 8px;
+      }
+
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body {
+        background: #000;
+        color: var(--text-main);
+        font-family: "gg sans", sans-serif;
+        height: 100vh;
+        overflow: hidden;
+      }
+
+      /* --- NEBULA PARTICLE INTRO --- */
+      #intro-layer {
+        position: fixed; inset: 0; background: #000; z-index: 9999;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        transition: opacity 0.8s ease-out, transform 0.8s ease-in;
+      }
+      #warp-canvas { position: absolute; inset: 0; opacity: 0.6; }
+      .intro-title {
+        font-family: "JetBrains Mono"; font-size: 2.5rem; font-weight: 700;
+        color: #fff; text-shadow: 0 0 20px var(--neon-cyan); z-index: 10; letter-spacing: -1px;
+      }
+
+      /* --- APPLICATION LAYOUT --- */
+      .app-shell {
+        display: grid; grid-template-columns: 280px 1fr; height: 100vh;
+        opacity: 0; transition: 1s cubic-bezier(0.19, 1, 0.22, 1);
+      }
+      .app-active { opacity: 1; }
+
+      .sidebar {
+        background: var(--bg-sidebar); padding: 32px 16px;
+        display: flex; flex-direction: column; gap: 28px;
+        border-right: 1px solid rgba(255, 255, 255, 0.05);
+      }
+
+      .brand-hdr {
+        font-size: 16px; font-weight: 800; color: #fff; padding: 0 10px;
+        border-left: 3px solid var(--neon-cyan); letter-spacing: 0.5px;
+      }
+
+      .control-group { display: flex; flex-direction: column; gap: 8px; }
+      .label-small { font-size: 11px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; padding: 0 10px; }
+
+      .discord-btn {
+        background: var(--bg-card); color: var(--text-main); border: none;
+        padding: 14px 16px; border-radius: var(--btn-radius);
+        font-size: 14px; font-weight: 600; cursor: pointer;
+        text-align: left; transition: all 0.2s ease;
+        display: flex; align-items: center; gap: 12px;
+      }
+      .discord-btn:hover { background: #3f4147; transform: translateX(4px); }
+      .btn-run { background: var(--blurple); box-shadow: 0 4px 15px rgba(88, 101, 242, 0.25); }
+      .btn-run:hover { background: var(--blurple-hover); }
+      .btn-neon-cyan { border: 1px solid var(--neon-cyan); color: var(--neon-cyan); }
+      .btn-neon-magenta { border: 1px solid var(--neon-magenta); color: var(--neon-magenta); }
+
+      #error-log {
+        margin-top: 10px; padding: 12px; border-radius: 8px;
+        background: rgba(242, 63, 66, 0.1); border: 1px solid var(--neon-magenta);
+        display: none; animation: shake 0.4s ease-in-out;
+      }
+      @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-5px); }
+        75% { transform: translateX(5px); }
+      }
+
+      .workspace-container { padding: 16px 16px 16px 0; background: var(--bg-sidebar); }
+      .workspace {
+        position: relative; background: var(--bg-deep); height: 100%; width: 100%;
+        border-radius: var(--radius-lg); overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.05);
+      }
+      #canvas { display: block; width: 100%; height: 100%; cursor: crosshair; }
+
+      .status-badge {
+        position: absolute; bottom: 24px; right: 24px;
+        background: rgba(0, 0, 0, 0.75); padding: 10px 20px; border-radius: 30px;
+        font-family: "JetBrains Mono"; font-size: 11px; color: var(--neon-cyan);
+        border: 1px solid rgba(0, 243, 255, 0.2); backdrop-filter: blur(8px);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="intro-layer">
+      <canvas id="warp-canvas"></canvas>
+      <h1 class="intro-title">Map Coloring CSP</h1>
+    </div>
+
+    <div class="app-shell" id="app">
+      <aside class="sidebar">
+        <div class="brand-hdr">Map Coloring CSP</div>
+
+        <div class="control-group">
+          <p class="label-small">Compute Engine</p>
+          <button class="discord-btn btn-run" onclick="runSolver()">
+            ▶ Run Analysis
+          </button>
+        </div>
+
+        <div class="control-group">
+          <p class="label-small">Graph Configuration</p>
+          <button class="discord-btn btn-neon-cyan" onclick="undo()">
+            ⟲ Undo Node
+          </button>
+          <button class="discord-btn btn-neon-cyan" onclick="genRandom()">
+            ⚡ Gen Cluster
+          </button>
+          <button class="discord-btn btn-neon-magenta" onclick="clearAll()">
+            🗑 Reset Map
+          </button>
+        </div>
+
+        <div id="error-log">
+          <p class="label-small" style="color: var(--neon-magenta); margin-bottom: 4px">
+            Constraint Breached
+          </p>
+          <p id="error-msg" style="font-size: 12px; color: var(--text-main); line-height: 1.4"></p>
+        </div>
+
+        <div style="margin-top: auto; padding: 0 10px">
+          <p class="label-small">Search Delay</p>
+          <input type="range" id="speed" min="50" max="980" value="850" style="width: 100%; accent-color: var(--blurple); margin-top: 10px" />
+        </div>
+      </aside>
+
+      <main class="workspace-container">
+        <div class="workspace">
+          <canvas id="canvas"></canvas>
+          <div class="status-badge">
+            SOLVER_STATE: <span id="status">IDLE</span>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <script>
+      // --- 1. NEBULA INTRO ---
+      const warpCanvas = document.getElementById("warp-canvas");
+      const wctx = warpCanvas.getContext("2d");
+      let particles = [];
+
+      function initParticles() {
+        warpCanvas.width = window.innerWidth;
+        warpCanvas.height = window.innerHeight;
+        for (let i = 0; i < 350; i++) {
+          particles.push({
+            x: Math.random() * warpCanvas.width - warpCanvas.width / 2,
+            y: Math.random() * warpCanvas.height - warpCanvas.height / 2,
+            z: Math.random() * warpCanvas.width,
+            c: ["#5865f2", "#00f3ff", "#ff0055"][Math.floor(Math.random() * 3)],
+          });
+        }
+      }
+
+      function drawWarp() {
+        wctx.fillStyle = "rgba(0, 0, 0, 0.25)";
+        wctx.fillRect(0, 0, warpCanvas.width, warpCanvas.height);
+        let cx = warpCanvas.width / 2, cy = warpCanvas.height / 2;
+        particles.forEach((p) => {
+          p.z -= 7;
+          if (p.z <= 0) p.z = warpCanvas.width;
+          let x = (p.x / p.z) * warpCanvas.width + cx;
+          let y = (p.y / p.z) * warpCanvas.height + cy;
+          let s = (1 - p.z / warpCanvas.width) * 3;
+          wctx.fillStyle = p.c;
+          wctx.beginPath(); wctx.arc(x, y, s, 0, Math.PI * 2); wctx.fill();
+        });
+        requestAnimationFrame(drawWarp);
+      }
+      initParticles();
+      drawWarp();
+
+      setTimeout(() => {
+        document.getElementById("intro-layer").style.opacity = "0";
+        document.getElementById("app").classList.add("app-active");
+        setTimeout(() => (document.getElementById("intro-layer").style.display = "none"), 1000);
+      }, 2800);
+
+      // --- 2. GRAPH CSP ENGINE ---
+      const canvas = document.getElementById("canvas");
+      const ctx = canvas.getContext("2d");
+      const speedIn = document.getElementById("speed");
+      const statusTxt = document.getElementById("status");
+
+      let nodes = {}, edges = [], nodeColors = {};
+      let nodeCount = 0, selected = null, solving = false;
+      let history = [];
+      let startTime = 0;
+      const palette = ["#5865f2", "#ff0055", "#23a559", "#f3ff00"];
+
+      function resize() {
+        canvas.width = canvas.parentElement.clientWidth;
+        canvas.height = canvas.parentElement.clientHeight;
+      }
+      window.onresize = resize;
+      resize();
+
+      function save() { history.push({ n: JSON.parse(JSON.stringify(nodes)), e: JSON.parse(JSON.stringify(edges)), c: nodeCount }); }
+
+      function undo() {
+        if (history.length && !solving) {
+          let l = history.pop();
+          nodes = l.n; edges = l.e; nodeCount = l.c; nodeColors = {};
+          document.getElementById("error-log").style.display = "none";
+        }
+      }
+
+      canvas.onmousedown = (e) => {
+        if (solving) return;
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left, y = e.clientY - rect.top;
+        let hit = null;
+        for (let id in nodes) if (Math.hypot(nodes[id].x - x, nodes[id].y - y) < 25) hit = id;
+
+        if (!hit) {
+          save(); nodes[nodeCount++] = { x, y };
+        } else {
+          if (selected === null) selected = hit;
+          else if (selected !== hit) {
+            save(); edges.push({ from: selected, to: hit }); selected = null;
+          } else selected = null;
+        }
+      };
+
+      async function solve(ids, idx) {
+        // TIME BREACH CHECK: 5 seconds limit
+        if (Date.now() - startTime > 5000) return "TIMEOUT";
+
+        if (idx === ids.length) return true;
+        let n = ids[idx];
+
+        for (let c of palette) {
+          nodeColors[n] = c;
+          statusTxt.innerText = `SCANNING_NODE_${n}`;
+          await new Promise((r) => setTimeout(r, 1000 - speedIn.value));
+
+          let conflict = edges.some(
+            (e) => (e.from == n && nodeColors[e.to] == c) || (e.to == n && nodeColors[e.from] == c)
+          );
+
+          if (!conflict) {
+            let res = await solve(ids, idx + 1);
+            if (res === true) return true;
+            if (res === "TIMEOUT") return "TIMEOUT"; // Bubble up timeout
+          }
+          nodeColors[n] = null;
+        }
+        return false;
+      }
+
+      async function runSolver() {
+        if (solving || !Object.keys(nodes).length) return;
+        solving = true;
+        nodeColors = {};
+        startTime = Date.now(); // Start timer
+        document.getElementById("error-log").style.display = "none";
+        statusTxt.style.color = "var(--neon-cyan)";
+
+        const result = await solve(Object.keys(nodes), 0);
+
+        if (result === true) {
+          statusTxt.innerText = "STABLE";
+          statusTxt.style.color = "var(--neon-green)";
+        } else if (result === "TIMEOUT") {
+          statusTxt.innerText = "TIMED OUT";
+          statusTxt.style.color = "var(--neon-magenta)";
+          showError("4 Color Constraint Breached: Computation time limit exceeded. The graph density suggests no planar 4-color solution exists.");
+        } else {
+          statusTxt.innerText = "FAILED";
+          statusTxt.style.color = "var(--neon-magenta)";
+          showError("Impossible Configuration: The current node connections violate the 4-color theorem limits.");
+        }
+        solving = false;
+      }
+
+      function showError(msg) {
+        const log = document.getElementById("error-log");
+        document.getElementById("error-msg").innerText = msg;
+        log.style.display = "block";
+      }
+
+      function clearAll() {
+        nodes = {}; edges = []; nodeColors = {}; nodeCount = 0; selected = null;
+        statusTxt.innerText = "IDLE"; statusTxt.style.color = "var(--neon-cyan)";
+        document.getElementById("error-log").style.display = "none";
+      }
+
+      function genRandom() {
+        clearAll();
+        for (let i = 0; i < 8; i++) nodes[nodeCount++] = { x: 100 + Math.random() * (canvas.width - 200), y: 100 + Math.random() * (canvas.height - 200) };
+        for (let i = 0; i < 11; i++) {
+          let a = Math.floor(Math.random() * 8), b = Math.floor(Math.random() * 8);
+          if (a != b) edges.push({ from: String(a), to: String(b) });
+        }
+      }
+
+      function render() {
+        ctx.fillStyle = "#0a0a0c";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.04)";
+        ctx.lineWidth = 1;
+        for (let i = 0; i < canvas.width; i += 60) { ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke(); }
+        for (let i = 0; i < canvas.height; i += 60) { ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(canvas.width, i); ctx.stroke(); }
+
+        edges.forEach((e) => {
+          const n1 = nodes[e.from], n2 = nodes[e.to];
+          ctx.lineWidth = 3; ctx.strokeStyle = "rgba(255, 255, 255, 0.12)";
+          ctx.beginPath(); ctx.moveTo(n1.x, n1.y); ctx.lineTo(n2.x, n2.y); ctx.stroke();
+        });
+
+        Object.entries(nodes).forEach(([id, n]) => {
+          const c = nodeColors[id] || "#2b2d31";
+          const isActive = nodeColors[id] != null;
+          ctx.strokeStyle = selected === id ? "#fff" : "rgba(255,255,255,0.08)";
+          ctx.lineWidth = 2; ctx.fillStyle = c;
+          ctx.beginPath(); ctx.arc(n.x, n.y, 22, 0, 7); ctx.fill(); ctx.stroke();
+
+          if (isActive) {
+            ctx.shadowBlur = 20; ctx.shadowColor = c;
+            ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(n.x, n.y, 6, 0, 7); ctx.fill();
+            ctx.shadowBlur = 0;
+          }
+          ctx.fillStyle = "#fff"; ctx.font = "bold 12px JetBrains Mono";
+          ctx.textAlign = "center"; ctx.fillText(id, n.x, n.y + 5);
+        });
+        requestAnimationFrame(render);
+      }
+      render();
+    </script>
+  </body>
+</html>
