@@ -2,6 +2,8 @@
 
 A high-performance, visual Constraint Satisfaction Problem (CSP) solver built with a Discord-inspired aesthetic. This tool demonstrates the **Four Color Theorem** and backtracking algorithms through an interactive graph interface.
 
+🔗 Live Demo: [map-coloring-r2o8ajjyh-jaykumarjain012-7467s-projects.vercel.app](https://map-coloring-r2o8ajjyh-jaykumarjain012-7467s-projects.vercel.app/)
+
 ## 🎨 Features
 - **Visual CSP Solver:** Watch the algorithm attempt to color nodes in real-time.
 - **Backtracking Logic:** Implements a recursive search to ensure no two adjacent nodes share the same color.
